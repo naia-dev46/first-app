@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <title>記録</title>
+</head>
+<body>
+
+<h1>記録する</h1>
+
+<input type="date" id="date">
+<input type="text" id="exercise" placeholder="種目">
+<input type="number" id="weight" placeholder="重量">
+<input type="number" id="reps" placeholder="回数">
+
+<button onclick="addRecord()">保存</button>
+
+<br><br>
+<a class = "day" href="index.html">▶ ホームに戻る</a>
+<a class = "day" href="history.html">▶ 履歴を見る</a>
+
+<script>
+function addRecord() {
+  const record = {
+    date: document.getElementById("date").value,
+    exercise: document.getElementById("exercise").value,
+    weight: Number(document.getElementById("weight").value),
+    reps: document.getElementById("reps").value
+  };
+
+  let records = JSON.parse(localStorage.getItem("records")) || [];
+  records.push(record);
+
+  localStorage.setItem("records", JSON.stringify(records));
+
+  alert("保存した！");
+}
+</script>
+
+</body>
+</html>

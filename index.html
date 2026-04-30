@@ -2,107 +2,23 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>筋トレ記録＋グラフ</title>
-
-  <!-- Chart.js（グラフ用） -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    body {
-      font-family: Arial;
-      max-width: 500px;
-      margin: auto;
-      padding: 10px;
-    }
-    input, button {
-      width: 100%;
-      margin: 5px 0;
-      padding: 10px;
-    }
-    canvas {
-      margin-top: 20px;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <title>筋トレアプリ</title>
 </head>
 <body>
 
-<h1>筋トレ記録</h1>
+<h1>筋トレアプリ</h1>
 
-<h2>記録する</h2>
-<input type="date" id="date">
-<input type="text" id="exercise" placeholder="種目">
-<input type="number" id="weight" placeholder="重量">
-<input type="number" id="reps" placeholder="回数">
+<a class = "day" href="record.html">▶ 記録する</a>
+<a class = "day" href="history.html">▶ 履歴を見る</a>
 
-<button onclick="addRecord()">記録する</button>
-
-<h2>記録一覧</h2>
-<ul id="list"></ul>
-
-<h2>重量グラフ</h2>
-<canvas id="chart"></canvas>
+<p id="today"></p>
 
 <script>
-let records = JSON.parse(localStorage.getItem("records")) || [];
-let chart;
-
-function addRecord() {
-  const date = document.getElementById("date").value;
-  const exercise = document.getElementById("exercise").value;
-  const weight = document.getElementById("weight").value;
-  const reps = document.getElementById("reps").value;
-
-  if (!date || !exercise || !weight || !reps) {
-    alert("全部入力して");
-    return;
-  }
-
-  records.push({ date, exercise, weight: Number(weight), reps });
-  save();
-}
-
-function save() {
-  localStorage.setItem("records", JSON.stringify(records));
-  render();
-  drawChart();
-}
-
-function render() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-
-  records.forEach(r => {
-    const li = document.createElement("li");
-    li.textContent = `${r.date} ${r.exercise} ${r.weight}kg × ${r.reps}回`;
-    list.appendChild(li);
-  });
-}
-
-function drawChart() {
-  const ctx = document.getElementById("chart");
-
-  const sorted = [...records].sort((a,b)=> new Date(a.date)-new Date(b.date));
-
-  const labels = sorted.map(r => r.date);
-  const data = sorted.map(r => r.weight);
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '重量(kg)',
-        data: data
-      }]
-    }
-  });
-}
-
-// 初期表示
-render();
-drawChart();
+const records = JSON.parse(localStorage.getItem("records")) || [];
+document.getElementById("today").textContent =
+  "記録数：" + records.length;
 </script>
 
 </body>
