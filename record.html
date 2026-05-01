@@ -11,32 +11,270 @@
 <h1>記録する</h1>
 
 <input type="date" id="date">
-<input type="text" id="exercise" placeholder="種目">
-<input type="number" id="weight" placeholder="重量">
-<input type="number" id="reps" placeholder="回数">
 
-<button onclick="addRecord()">保存</button>
+<button class="sub-btn" onclick="addExerciseBlock()">＋ 種目追加</button>
+
+<div id="exercises"></div>
+<button class="save-btn" onclick="addRecord()">保存</button>
 
 <br><br>
-<a class = "day" href="index.html">▶ ホームに戻る</a>
 <a class = "day" href="history.html">▶ 履歴を見る</a>
+<a class = "day" href="index.html">▶ ホームに戻る</a>
 
 <script>
+
+  const EXERCISE_COEFFICIENT = {
+  // 胸
+  "ベンチプレス": 0.10,
+  "チェストプレス": 0.09,
+
+  // 背中
+  "ラットプルダウン": 0.08,
+  "チンニング": 0.12,
+
+  // 肩
+  "ショルダープレス": 0.09,
+
+  // 脚（参考）
+  "スクワット": 0.15,
+  "デッドリフト": 0.18,
+
+  // 体幹
+  "アブドミナルクランチ": 0.05,
+
+  // 自重系
+  "ディップス": 0.11
+};
+
+  let records = JSON.parse(localStorage.getItem("records")) || [];
+
+const recent = [...new Set(
+  records.flatMap(r =>
+    (r.workouts || []).map(w => w.exercise)
+  )
+)].slice(0, 3);
+
 function addRecord() {
+  const date = document.getElementById("date").value;
+
+  if (!date) {
+    alert("日付を入力してください");
+    return;
+  }
+
   const record = {
-    date: document.getElementById("date").value,
-    exercise: document.getElementById("exercise").value,
-    weight: Number(document.getElementById("weight").value),
-    reps: document.getElementById("reps").value
+    id: Date.now(),
+    date,
+    workouts: []
   };
+
+  const exercises = document.querySelectorAll(".exercise-block");
+
+  if (exercises.length === 0) {
+    alert("種目を追加してください");
+    return;
+  }
+  let totalCalories = 0;
+
+  try {
+    exercises.forEach(block => {
+      const exercise = block.querySelector(".exercise").value;
+
+  const coef = EXERCISE_COEFFICIENT[exercise] || 0.1;
+
+  const sets = Array.from(block.querySelectorAll(".set")).map(set => {
+    const w = Number(set.querySelector(".weight").value);
+    const r = Number(set.querySelector(".reps").value);
+
+  if (isNaN(w) || isNaN(r)) {
+    throw new Error();
+  }
+
+    const calories = w * r * coef;
+
+    totalCalories += calories;
+
+    return {
+      weight: w,
+      reps: r,
+      calories
+    };
+  });
+
+      if (!exercise) throw new Error();
+
+      record.workouts.push({ exercise, sets });
+    });
+    record.totalCalories = totalCalories;
+  } catch (e) {
+    alert("すべての項目を入力してください");
+    return;
+  }
 
   let records = JSON.parse(localStorage.getItem("records")) || [];
   records.push(record);
 
   localStorage.setItem("records", JSON.stringify(records));
+  localStorage.setItem("lastRecord", JSON.stringify(record));
 
-  alert("保存した！");
+  showToast("保存完了！");
+  resetForm();
 }
+
+function addExerciseBlock(selectedExercise = "", setsData = []) {
+  const container = document.getElementById("exercises");
+
+  const block = document.createElement("div");
+  block.className = "exercise-block";
+
+  block.innerHTML = `
+  <select class="exercise">
+    <option value="チェストプレス" ${selectedExercise==="チェストプレス"?"selected":""}>チェストプレス</option>
+    <option value="チンニング" ${selectedExercise==="チンニング"?"selected":""}>チンニング</option>
+    <option value="ディップス" ${selectedExercise==="ディップス"?"selected":""}>ディップス</option>
+    <option value="ショルダープレス" ${selectedExercise==="ショルダープレス"?"selected":""}>ショルダープレス</option>
+    <option value="ラットプルダウン" ${selectedExercise==="ラットプルダウン"?"selected":""}>ラットプルダウン</option>
+    <option value="アブドミナルクランチ" ${selectedExercise==="アブドミナルクランチ"?"selected":""}>アブドミナルクランチ</option>
+  </select>
+
+  <div class="sets"></div>
+
+  <div class="block-actions">
+    <button onclick="addSet(this)">＋セット追加</button>
+    <button onclick="removeExercise(this)">種目削除</button>
+  </div>
+
+  <hr>
+  `;
+
+  container.appendChild(block);
+
+  const setsContainer = block.querySelector(".sets");
+
+  // ▼ ここ重要
+  if (setsData.length > 0) {
+    setsData.forEach(s => {
+      const set = document.createElement("div");
+      set.className = "set";
+      set.innerHTML = `
+        <input type="number" class="weight" value="${s.weight}">
+        <input type="number" class="reps" value="${s.reps}">
+        <button onclick="removeSet(this)">削除</button>
+      `;
+      setsContainer.appendChild(set);
+    });
+  } else {
+    // 初期セット
+    addSet(block.querySelector(".block-actions button"));
+  }
+}
+
+function addSet(button) {
+  const block = button.closest(".exercise-block");
+  const setsContainer = block.querySelector(".sets");
+
+  const set = document.createElement("div");
+  set.className = "set";
+
+  set.innerHTML = `
+    <input type="number" class="weight" placeholder="重量">
+    <input type="number" class="reps" placeholder="回数">
+    <button onclick="removeSet(this)">削除</button>
+  `;
+
+  setsContainer.appendChild(set);
+}
+
+function removeSet(button) {
+  const set = button.parentElement;
+  const block = set.closest(".exercise-block");
+
+  set.remove();
+
+  // セットが0になったらブロックごと削除
+  const remainingSets = block.querySelectorAll(".set");
+
+  if (remainingSets.length === 0) {
+    block.remove();
+  }
+}
+
+window.onload = () => {
+  const container = document.getElementById("exercises");
+  container.innerHTML = "";
+
+  const last = JSON.parse(localStorage.getItem("lastRecord"));
+
+  if (last && last.workouts) {
+    last.workouts.forEach(w => {
+      addExerciseBlock(w.exercise, w.sets);
+    });
+  } else {
+    addExerciseBlock();
+  }
+};
+
+function removeExercise(button) {
+  const block = button.closest(".exercise-block");
+  block.remove();
+}
+
+function resetForm() {
+  document.getElementById("date").value = "";
+
+  const container = document.getElementById("exercises");
+  container.innerHTML = "";
+
+  // 初期状態を1つ作り直す
+  addExerciseBlock();
+}
+
+function showToast(msg) {
+  const div = document.createElement("div");
+  div.textContent = msg;
+  div.style = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: black;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    z-index: 999;
+  `;
+  document.body.appendChild(div);
+
+  setTimeout(() => div.remove(), 2000);
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.classList.contains("reps")) {
+    const set = e.target.closest(".set");
+    const block = e.target.closest(".exercise-block");
+
+    const isLast = set === block.querySelector(".sets").lastElementChild;
+
+    if (isLast && e.target.value !== "") {
+      addSet(block.querySelector(".block-actions button"));
+    }
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const index = inputs.indexOf(e.target);
+
+    if (index >= 0 && inputs[index + 1]) {
+      inputs[index + 1].focus();
+    }
+  }
+});
+
+
+
 </script>
 
 </body>

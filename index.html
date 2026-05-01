@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
   <title>筋トレアプリ</title>
 </head>
 <body>
@@ -19,6 +20,12 @@
 const records = JSON.parse(localStorage.getItem("records")) || [];
 document.getElementById("today").textContent =
   "記録数：" + records.length;
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("SW登録成功"))
+    .catch(err => console.log("SW登録失敗", err));
+}
 </script>
 
 </body>

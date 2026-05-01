@@ -11,47 +11,193 @@
 
 <h1>履歴</h1>
 
-<ul id="list"></ul>
-
+<ul id="dateList"></ul>
+<div id="detail"></div>
 <canvas id="chart"></canvas>
 
 <br><br>
+<a class = "day" href="record.html">▶ 記録する</a>
 <a class = "day" href="index.html">▶ ホームに戻る</a>
-<a class = "day" href="record.html">▶ 記録を見る</a>
+
+<button onclick="clearRecords()">データ全削除</button>
 
 <script>
-let records = JSON.parse(localStorage.getItem("records")) || [];
+let raw = JSON.parse(localStorage.getItem("records")) || [];
 
-function render() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+// 旧データ → 新データ変換
+let records = raw.map(r => {
 
-  records.forEach(r => {
-    const li = document.createElement("li");
-    li.textContent = `${r.date} ${r.exercise} ${r.weight}kg × ${r.reps}`;
-    list.appendChild(li);
+  // すでに新形式ならそのまま返す
+  if (r.workouts) return r;
+
+  // 旧形式なら変換
+  return {
+    id: Date.now(),
+    date: r.date,
+    workouts: [
+      {
+        exercise: r.exercise,
+        sets: [
+          {
+            weight: r.weight,
+            reps: r.reps
+          }
+        ]
+      }
+    ]
+  };
+});
+
+records = records.map(r => {
+  if (r.totalCalories) return r;
+
+  let total = 0;
+
+  (r.workouts || []).forEach(w => {
+    (w.sets || []).forEach(s => {
+      total += (s.weight || 0) * (s.reps || 0) * 0.1;
+    });
   });
-}
+
+  r.totalCalories = total;
+  return r;
+});
+
+
+// 修復後を保存し直す
+localStorage.setItem("records", JSON.stringify(records));
 
 function drawChart() {
   const ctx = document.getElementById("chart");
 
-  const labels = records.map(r => r.date);
-  const data = records.map(r => r.weight);
+  const chartData = records.map(r => ({
+    date: r.date,
+    calories: calculateDailyCalories(r)
+  }));
 
-  new Chart(ctx, {
-    type: 'line',
+  const labels = chartData.map(d => d.date);
+  const data = records.map(r => r.totalCalories || 0);
+
+  if (window.myChart) window.myChart.destroy();
+
+  if (labels.length === 0) return;
+
+  window.myChart = new Chart(ctx, {
+    type: "line",
     data: {
-      labels: labels,
+      labels,
       datasets: [{
-        label: '重量',
-        data: data
+        label: "1日消費カロリー（推定）",
+        data,
+        tension: 0.3
       }]
     }
   });
 }
 
-render();
+function renderDateList() {
+  const list = document.getElementById("dateList");
+  list.innerHTML = "";
+
+  records.forEach((record, index) => {
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <span class="date-link">${record.date}</span>
+    `;
+
+    li.querySelector(".date-link").onclick = () => showDetail(index);
+
+    list.appendChild(li);
+  });
+}
+
+function showDetail(index) {
+  const record = records[index];
+
+  const detail = document.getElementById("detail");
+  detail.innerHTML = "";
+
+  let html = `<h3>${record.date}</h3>`;
+
+  (record.workouts || []).forEach(w => {
+    html += `<p>📌 ${w.exercise}</p>`;
+
+    (w.sets || []).forEach((set, i) => {
+      html += `セット${i + 1}: ${set.weight}kg × ${set.reps}<br>`;
+    });
+  });
+
+  detail.innerHTML = html;
+
+}
+
+function drawChartForRecord(record) {
+  const ctx = document.getElementById("chart");
+
+  const data = [];
+
+  (record.workouts || []).forEach(w => {
+    (w.sets || []).forEach(s => {
+      data.push({
+        exercise: w.exercise,
+        weight: s.weight
+      });
+    });
+  });
+
+  const labels = data.map(d => d.exercise);
+  const values = data.map(d => d.weight);
+
+  if (window.myChart) window.myChart.destroy();
+
+  if (data.length === 0) return;
+
+  window.myChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: record.date,
+        data: values
+      }]
+    }
+  });
+}
+
+function calculateDailyCalories(record) {
+  let total = 0;
+
+  (record.workouts || []).forEach(w => {
+    (w.sets || []).forEach(s => {
+      const weight = Number(s.weight) || 0;
+      const reps = Number(s.reps) || 0;
+
+      total += weight * reps * 0.1;
+    });
+  });
+
+  return total;
+}
+
+function clearRecords() {
+  const ok = confirm("トレーニング履歴を削除しますか？");
+
+  if (!ok) return;
+
+  localStorage.removeItem("records");
+
+  alert("履歴を削除しました");
+
+  location.reload();
+}
+
+const chartData = records.map(r => ({
+  date: r.date,
+  calories: calculateDailyCalories(r)
+}));
+
+renderDateList();
 drawChart();
 </script>
 
